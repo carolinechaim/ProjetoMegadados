@@ -1,7 +1,7 @@
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Float
 from sqlalchemy.orm import relationship
 
-from .database import Base
+from database import Base
 
 class Move(Base):
     __tablename__ = "move"
@@ -10,7 +10,7 @@ class Move(Base):
     item_id = Column(Integer, ForeignKey("itens.id"))
     quantidade = Column(Integer)
     descricao = Column(String(100), index=True)
-    estoque = relationship("Item", back_populates="move")
+    itens = relationship("Item", back_populates="move")
 
 
 class Item(Base):
@@ -21,6 +21,5 @@ class Item(Base):
     descricao = Column(String(100), index=True)
     preco = Column(Float, index=True)
     quantidade = Column(Integer, primary_key = True, index=True, default=0)
-    esgotado = Column(Boolean, default=True)
 
-    move = relationship("Move", back_populates="estoque", cascade="all, delete")
+    move = relationship("Move", back_populates="itens", cascade="all, delete")

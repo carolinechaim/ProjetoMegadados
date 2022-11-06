@@ -5,7 +5,7 @@ from sqlalchemy_utils import database_exists, create_database
 from dotenv import load_dotenv
 import os
 
-load_dotenv('.env')
+load_dotenv()
 
 SERVER = os.getenv("SERVER")
 USER = os.getenv("USER")

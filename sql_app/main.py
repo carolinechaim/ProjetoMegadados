@@ -1,16 +1,12 @@
 #python -m uvicorn main:app --reload
 
 #imports
-from doctest import Example
 import logging
 from fastapi import FastAPI, HTTPException, Request, Query, Depends
 from typing import Optional
-from pydantic import BaseModel, Field
-from fastapi.responses import JSONResponse
-from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
-from . import crud, models, schemas
-from .database import SessionLocal, engine
+import crud, models, schemas
+from database import SessionLocal, engine
 
 logger = logging.getLogger("uvicorn")
 
@@ -32,7 +28,7 @@ def get_db():
 
 #cria um item
 @app.post("/itens/create", status_code=201, response_model=schemas.Item)
-async def create_item(item: schemas.Item, db :Session = Depends(get_db) ):
+async def create_item(item: schemas.ItemCreate, db :Session = Depends(get_db) ):
     """
     Cria um novo item no estoque com:
 
@@ -40,7 +36,6 @@ async def create_item(item: schemas.Item, db :Session = Depends(get_db) ):
     - **Descrição**: Um espaço para detalhes extra sobre o produto
     - **Preço**: obrigatório
     - **Quantidade**: Quanto tem do produto no estoque
-    - **Esgotado**: Se o produto está esgotado
 
     Retorna o item criado como:
 
@@ -49,18 +44,13 @@ async def create_item(item: schemas.Item, db :Session = Depends(get_db) ):
         "descricao": "Marca Tio João, saco com 5kg.",
         "preco": 12.5,
         "quantidade": 5,
-        "esgotado": false
     }
     """
-    db_item = models.Item(nome=item.nome, preco=item.preco, quantidade=0, descricao=item.descricao)
-    if db_item is None:
-        raise HTTPException(status_code=400, detail="Erro, dados não válidos")
-    
     return crud.create_item(db=db, item=item)
 
 
 #Pega a lista de itens
-@app.get("/itens/", status_code=200, response_model = schemas.Item)
+@app.get("/itens/", status_code=200, response_model = list[schemas.Item])
 async def read_all_items(db :Session = Depends(get_db)):
     """
    Retorna todos os itens presentes no estoque com essa configuração:
@@ -70,18 +60,16 @@ async def read_all_items(db :Session = Depends(get_db)):
         "descricao": "Marca Tio João, saco com 5kg.",
         "preco": 12.5,
         "quantidade": 5,
-        "esgotado": false
     },
     {
         "nome": "Ovos",
         "descricao": "Estilo caipira, cartela com 12.",
         "preco": 10,
         "quantidade": 7,
-        "esgotado": false
     }
     """
-
-    return crud.read_all_items(db=db)
+    itens = crud.read_all_items(db=db)
+    return itens
 
 #Pega item com id especifico
 @app.get("/itens/{item_id}", status_code=200, response_model=schemas.Item)
@@ -94,7 +82,6 @@ async def read_item(item_id: int = Query(title="Id do item que deseja procurar",
         "descricao": "Marca Tio João, saco com 5kg.",
         "preco": 12.5,
         "quantidade": 5,
-        "esgotado": false
     }
     """
     db_item = crud.read_item(db = db, id = item_id)
@@ -103,12 +90,12 @@ async def read_item(item_id: int = Query(title="Id do item que deseja procurar",
     return db_item
 
 #Update apenas um campo
-@app.patch("/itens/{item_id}", response_model=schemas.Item)
+@app.patch("/itens/patch/{item_id}", response_model=schemas.Item)
 async def update_partial_item(item: schemas.Item,
 item_id: int = Query(title="Id do item que deseja procurar", ge=0),
-item_nome: Optional(str) = Query(None, title="Nome do item que quer trocar (Opcional)"),
-item_descricao: Optional(str) = Query(None, title="Descrição do item que quer trocar (Opcional)"),
-item_preco: Optional(float) = Query(None, title="Preço do item que quer trocar (Opcional)"),
+item_nome: Optional[str] = Query(None, title="Nome do item que quer trocar (Opcional)"),
+item_descricao: Optional[str] = Query(None, title="Descrição do item que quer trocar (Opcional)"),
+item_preco: Optional[float] = Query(None, title="Preço do item que quer trocar (Opcional)"),
 db: Session = Depends(get_db)):
     """
     Atualiza parcialmente as seguintes informações de um item do estoque:
@@ -140,7 +127,6 @@ async def update_item(move: schemas.MoveCreate, db: Session = Depends(get_db)):
     - **Descrição**: Um espaço para detalhes extra sobre o produto
     - **Preço**: obrigatório
     - **Quantidade**: Quanto tem do produto no estoque
-    - **Esgotado**: Se o produto está esgotado
 
     Retorna o item atualizado como:
 
@@ -149,7 +135,6 @@ async def update_item(move: schemas.MoveCreate, db: Session = Depends(get_db)):
         "descricao": "Marca Tio João, saco com 5kg.",
         "preco": 15,
         "quantidade": 5,
-        "esgotado": false
     }
     """
     db_item = db.query(models.Item).filter(models.Item.id == move.item_id).first()
@@ -168,7 +153,6 @@ async def delete_item(item_id: int = Query(title="Id do item que deseja deletar"
         "descricao": "Marca Tio João, saco com 5kg.",
         "preco": 12.5,
         "quantidade": 5,
-        "esgotado": false
     }
     """
     db_item = db.query(models.Item).filter(models.Item.id == item_id).first()
@@ -201,7 +185,7 @@ async def create_move(move: schemas.Move, db :Session = Depends(get_db) ):
     return crud.create_move(db=db, move=move)
 
 #Pega a lista de movimentações
-@app.get("/movimento/", status_code=200, response_model = schemas.Move)
+@app.get("/movimento/", status_code=200, response_model = list[schemas.Move])
 async def read_all_moves(db :Session = Depends(get_db)):
     """
    Retorna todos as movimentações feitas no estoque com essa configuração:
